@@ -1,150 +1,138 @@
 from music import *
-from random import *
+import random
 
-##### musical parameters
-comeAlive = 0.35
-measures = 4 
+# Set up the tempo
 
-##### define the data structure
-score = Score("Joyful Beats", 125.0)  # tempo is 125 bpm
-drumsPart = Part("Drums", 0, 9)  # using MIDI channel 9 (percussion)
-melodyPart = Part("Melody", 0, 0)  # using MIDI channel 0 (melody)
-harmonyPart = Part("Harmony", 0, 1)  # using MIDI channel 1 (harmony)
-
-##### create drum phrases
-# Kick (bass drum)
-bassDrumPhrase = Phrase(0.0)
-for i in range(8 * measures):
-    dynamics = randint(80, 110)  # Variation in dynamics
-    x = randint(0, 1)
-    if x == 1:
-        n = Note(ACOUSTIC_BASS_DRUM, HN, dynamics)
-    else:
-        n = Note(REST, HN, dynamics)
-    bassDrumPhrase.addNote(n)
-
-# Percussion (cencerro, tom-tom, etc.)
-percPhrase = Phrase(0.0)
-for i in range(8 * measures):
-    r = Note(REST, QN)
-    percPhrase.addNote(r)
-    
-    # Randomly select among instruments
-    pitch = choice([ABD, CCM, HMT, RC1])
-    dynamics = randint(80, 110)
-    n = Note(pitch, QN, dynamics)
-    percPhrase.addNote(n)
-
-# Hi-hats
-hiHatPhrase = Phrase(0.0)
-for i in range(4 * measures):
-    oddHit = i % 4 
-    doItNow = random() < comeAlive
-    
-    if oddHit == 1 and doItNow:
-        pitch = OHH
-    elif oddHit == 0 and doItNow:
-        pitch = ABD
-    
-    dynamics = randint(80, 110)
-    n = Note(pitch, HN, dynamics)
-    hiHatPhrase.addNote(n)
-    
-    r = Note(REST, HN)
-    hiHatPhrase.addNote(r)
-
-
-# Whistle
-whistlePhrase = Phrase(0.0)
-for i in range(2 * measures):
-    oddHit = i % 2 == 1
-    doItNow = random() < comeAlive
-    
-    if oddHit and doItNow:
-        pitch = MTR
-    else:
-        pitch = OTR
-    
-    dynamics = randint(80, 110)
-    n = Note(pitch, DHN, dynamics)
-    whistlePhrase.addNote(n)
-    
-    r = Note(REST, QN)
-    whistlePhrase.addNote(r)
-
-##### create melody phrases
-melodyPhrase = Phrase(0.0)
-# Define a C major scale (C, D, E, F, G, A, B)
-c_major_scale = [C4, D4, E4, F4, G4, A4, B4, C5]
-
-    
-##### create harmony phrases
-harmonyPhrase = Phrase(0.0)
-# Define chord structure based on the melody
-chord_progression = [
-    [C4, E4, G4],  # C major
-    [F4, A4, C5],  # F major
-    [G4, B4, D5],  # G major
-    [C4, E4, G4],  # C major
+score = Score("Joyful Beats", 120.0)
+# Define the transition matrix for the primary notes
+primary_transition_matrix = [
+    [0.4, 0.3, 0.2, 0.05, 0.05, 0.0, 0.0],  # From C
+    [0.3, 0.4, 0.2, 0.0, 0.1, 0.0, 0.0],  # From D
+    [0.2, 0.2, 0.4, 0.1, 0.1, 0.0, 0.0],  # From E
+    [0.1, 0.0, 0.1, 0.4, 0.3, 0.0, 0.0],  # From F
+    [0.2, 0.1, 0.1, 0.3, 0.4, 0.0, 0.0],  # From G
+    [0.1, 0.0, 0.0, 0.1, 0.2, 0.4, 0.2],  # From A
+    [0.0, 0.1, 0.0, 0.0, 0.1, 0.3, 0.5],  # From B
 ]
 
-for i in range(16 * measures):  
-    chord = chord_progression[i % len(chord_progression)]  # Get current chord
-    melody_note = choice(chord)  # Choose a note from the current chord
-    dynamics = randint(90, 110)
-    oddHit = i % 2 == 1
-    doItNow = random() < comeAlive
+# Define the transition matrix for the accompanying notes
+accompanying_transition_matrix = [
+    [0.3, 0.15, 0.15, 0.05, 0.05, 0.0, 0.0, 0.3],  # From C (includes rest)
+    [0.2, 0.2, 0.2, 0.0, 0.1, 0.0, 0.0, 0.3],  # From D
+    [0.2, 0.1, 0.2, 0.1, 0.1, 0.0, 0.0, 0.3],  # From E
+    [0.1, 0.0, 0.1, 0.2, 0.2, 0.0, 0.0, 0.3],  # From F
+    [0.2, 0.1, 0.1, 0.2, 0.2, 0.0, 0.0, 0.3],  # From G
+    [0.1, 0.0, 0.0, 0.1, 0.1, 0.3, 0.1, 0.3],  # From A
+    [0.0, 0.1, 0.0, 0.0, 0.1, 0.3, 0.4, 0.3],  # From B
+    [0.1, 0.0, 0.1, 0.0, 0.1, 0.0, 0.0, 0.7],  # From Rest (always stay at rest)
+]
+
+harmony_transition_matrix = [
+    [0.3, 0.2, 0.2, 0.1, 0.1, 0.0, 0.0, 0.1],  # From C
+    [0.2, 0.3, 0.2, 0.1, 0.1, 0.0, 0.0, 0.1],  # From D
+    [0.2, 0.1, 0.3, 0.1, 0.1, 0.0, 0.0, 0.1],  # From E
+    [0.1, 0.0, 0.1, 0.3, 0.2, 0.0, 0.0, 0.1],  # From F
+    [0.2, 0.1, 0.1, 0.2, 0.3, 0.0, 0.0, 0.1],  # From G
+    [0.1, 0.0, 0.0, 0.1, 0.1, 0.4, 0.1, 0.1],  # From A
+    [0.0, 0.1, 0.0, 0.0, 0.1, 0.3, 0.5, 0.1],  # From B
+    [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],  # From Rest (no longer always stay at rest)
+]
+
+percussion_transition_matrix = [
+    [0.5, 0.2, 0.1, 0.1, 0.1],  # From Kick
+    [0.2, 0.5, 0.2, 0.0, 0.1],  # From Snare
+    [0.1, 0.1, 0.5, 0.2, 0.1],  # From Hi-hat
+    [0.1, 0.1, 0.1, 0.5, 0.2],  # From Cymbal
+    [0.1, 0.1, 0.1, 0.1, 0.5],  # From Rest
+]
+
+# List of MIDI pitches for primary notes (C, D, E, F, G, A, B)
+primary_midi_pitches = [60, 64, 67, 65, 69, 71, 72]
+
+# List of MIDI pitches for accompanying notes (E, F, G, A, B, C, D)
+accompanying_midi_pitches = [60, 64, 67, 65, 69, 71, 72, REST]
+
+harmony_midi_pitches = [60, 64, 67, 65, 69, 71, 72, REST]  # Adding 0 for Rest
+
+percussion_midi_pitches = [MTR, OTR, RBL, RC1, REST]  # Kick, Snare, Hi-hat, Cymbal, Rest
+
+
+
+# Generate a melody using the Markov chain
+def generate_melody(transition_matrix, num_notes):
+    melody = []
+    current_state = random.randint(0, len(transition_matrix) - 1)
     
-    if oddHit and doItNow:
-      n = Note(melody_note, QN, dynamics)
-    else:
-      n = Note(REST, QN, dynamics)
-    melodyPhrase.addNote(n)
+    for _ in range(num_notes):
+        melody.append(current_state)
+        # Generate a random number to decide the next state based on the transition probabilities
+        rand_value = random.random()
+        cumulative_probability = 0.0
+        
+        for next_state, probability in enumerate(transition_matrix[current_state]):
+            cumulative_probability += probability
+            if rand_value < cumulative_probability:
+                current_state = next_state
+                break
+        
+    return melody
 
-# Optional: Add rhythmic variation
-for i in range(len(melodyPhrase.getNoteList())):
-    if i % 4 == 0:  # Change the rhythm for every fourth note
-        melodyPhrase.getNote(i).duration = EN * 4  # Hold for longer
-
-# Loop through melody notes to add harmony
-for i, note in enumerate(melodyPhrase.getNoteList()):
-    chord = chord_progression[i % len(chord_progression)]
-    harmony_note = choice(chord)  # Choose a note from the current chord
-    dynamics = randint(80, 100)
-    oddHit = i % 2 == 1
-    doItNow = random() < comeAlive
-    if oddHit and doItNow:
-      n = Note(harmony_note, HN, dynamics)
-    else:
-      n = Note(harmony_note, QN, dynamics)
-    harmonyPhrase.addNote(n)
+# Generate the primary melody
+num_notes = 64
+primary_states = generate_melody(primary_transition_matrix, num_notes)
+accompanying_states = generate_melody(accompanying_transition_matrix, num_notes)
+harmony_states = generate_melody(harmony_transition_matrix, num_notes/4)
+percussion_states = generate_melody(percussion_transition_matrix, num_notes/4)
 
 
 
-# Apply modifications
-Mod.elongate(bassDrumPhrase, 1)
-Mod.retrograde(percPhrase)
-Mod.transpose(hiHatPhrase, 2)
-Mod.palindrome(whistlePhrase)
-Mod.randomize(whistlePhrase, 2)
-Mod.transpose(harmonyPhrase, 3) 
+# Create a Phrase for the primary melody
+primary_phrase = Phrase()
+for state in primary_states:
+    note = Note(primary_midi_pitches[state], 1)
+    primary_phrase.addNote(note)
 
-##### combine musical material
-drumsPart.addPhrase(bassDrumPhrase)
-drumsPart.addPhrase(percPhrase)
-drumsPart.addPhrase(hiHatPhrase)
-drumsPart.addPhrase(whistlePhrase)
-melodyPart.addPhrase(melodyPhrase)
-harmonyPart.addPhrase(harmonyPhrase)
-score.addPart(drumsPart)
-score.addPart(melodyPart)
-score.addPart(harmonyPart)
+# Create a Phrase for the accompanying melody
+accompanying_phrase = Phrase()
+for state in accompanying_states:
+    note = Note(accompanying_midi_pitches[state], 1)
+    accompanying_phrase.addNote(note)
+    
+harmony_phrase = Phrase()
+for state in harmony_states:   
+    pitch = harmony_midi_pitches[state]
+    note = Note(harmony_midi_pitches[state], 4)
+    harmony_phrase.addNote(note)
+    
+percussion_phrase = Phrase()
+for state in percussion_states:
+    pitch = percussion_midi_pitches[state]
+    note = Note(pitch, 4)  # Set all notes to quarter notes (1.0)
+    percussion_phrase.addNote(note)
+    
+
+# Create a Part to play both phrases
+part1 = Part("An example flute part", PIANO, 1)
+part2 = Part("An example flute part", PIANO, 1)
+part3 = Part("An example flute part", VIOLIN, 3)
+part4 = Part("An example flute part", FLUTE, 2)
+percussion_part = Part("Percussion Part", 0, 9)
+part1.addPhrase(primary_phrase)
+part2.addPhrase(accompanying_phrase)
+part3.addPhrase(harmony_phrase)
+part4.addPhrase(accompanying_phrase)
+score.addPart(part1)
+score.addPart(part2)
+score.addPart(part3)
+score.addPart(part4)
+percussion_part.addPhrase(percussion_phrase)
+score.addPart(percussion_part)
 
 
-##### view and play
+
+# Play the composition
 View.sketch(score)
 Play.midi(score)
-
 
 
 
